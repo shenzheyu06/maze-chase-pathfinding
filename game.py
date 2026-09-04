@@ -1,7 +1,6 @@
-from collections import deque
-
 import pygame
 
+from pathfinding.bfs import bfs
 
 TILE_SIZE = 32
 HUD_HEIGHT = 40
@@ -130,84 +129,6 @@ def collect_pellet(
         return True
 
     return False
-
-
-def get_neighbors(
-    maze: list[list[str]],
-    position: tuple[int, int],
-) -> list[tuple[int, int]]:
-    """Return all walkable neighbors of a tile."""
-    row, column = position
-
-    directions = [
-        (-1, 0),  # up
-        (1, 0),   # down
-        (0, -1),  # left
-        (0, 1),   # right
-    ]
-
-    neighbors = []
-
-    for row_change, column_change in directions:
-        new_row = row + row_change
-        new_column = column + column_change
-
-        if is_walkable(
-            maze,
-            new_row,
-            new_column,
-        ):
-            neighbors.append(
-                (new_row, new_column)
-            )
-
-    return neighbors
-
-
-def bfs(
-    maze: list[list[str]],
-    start: tuple[int, int],
-    goal: tuple[int, int],
-) -> list[tuple[int, int]]:
-    """Return the shortest path using BFS."""
-    queue = deque([start])
-    visited = {start}
-
-    came_from: dict[
-        tuple[int, int],
-        tuple[int, int] | None,
-    ] = {
-        start: None
-    }
-
-    while queue:
-        current = queue.popleft()
-
-        if current == goal:
-            break
-
-        for neighbor in get_neighbors(
-            maze,
-            current,
-        ):
-            if neighbor not in visited:
-                visited.add(neighbor)
-                queue.append(neighbor)
-                came_from[neighbor] = current
-
-    if goal not in came_from:
-        return []
-
-    path = []
-    current = goal
-
-    while current is not None:
-        path.append(current)
-        current = came_from[current]
-
-    path.reverse()
-
-    return path
 
 
 def positions_collide(
