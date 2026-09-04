@@ -7,6 +7,9 @@ TILE_SIZE = 32
 HUD_HEIGHT = 40
 FPS = 60
 
+# Ghost moves once every 300 milliseconds
+GHOST_MOVE_DELAY = 300
+
 WALL_COLOR = (20, 40, 180)
 WALL_OUTLINE_COLOR = (70, 110, 255)
 PATH_COLOR = (0, 0, 0)
@@ -18,7 +21,7 @@ TEXT_COLOR = (255, 255, 255)
 
 
 # # = wall
-# . = open path with pellet
+# . = path with pellet
 # P = player starting position
 # G = ghost starting position
 MAZE_LAYOUT = [
@@ -51,12 +54,10 @@ WINDOW_HEIGHT = ROWS * TILE_SIZE + HUD_HEIGHT
 
 
 def create_maze() -> list[list[str]]:
-    """Create a mutable copy of the maze."""
     return [list(row) for row in MAZE_LAYOUT]
 
 
 def validate_maze() -> None:
-    """Check that every maze row has the same length."""
     for row_index, row in enumerate(MAZE_LAYOUT):
         if len(row) != COLUMNS:
             raise ValueError(
@@ -69,7 +70,6 @@ def find_start(
     maze: list[list[str]],
     symbol: str,
 ) -> tuple[int, int]:
-    """Find a starting position in the maze."""
     for row_index, row in enumerate(maze):
         for column_index, tile in enumerate(row):
             if tile == symbol:
@@ -84,7 +84,6 @@ def is_walkable(
     row: int,
     column: int,
 ) -> bool:
-    """Return whether a tile can be entered."""
     if row < 0 or row >= ROWS:
         return False
 
@@ -101,7 +100,6 @@ def move_player(
     row_change: int,
     column_change: int,
 ) -> tuple[int, int]:
-    """Move the player if the destination is walkable."""
     new_row = player_row + row_change
     new_column = player_column + column_change
 
@@ -116,7 +114,6 @@ def collect_pellet(
     row: int,
     column: int,
 ) -> bool:
-    """Remove a pellet and return whether one was collected."""
     if maze[row][column] == ".":
         maze[row][column] = " "
         return True
@@ -128,7 +125,6 @@ def get_neighbors(
     maze: list[list[str]],
     position: tuple[int, int],
 ) -> list[tuple[int, int]]:
-    """Return all walkable neighboring tiles."""
     row, column = position
 
     directions = [
@@ -155,15 +151,10 @@ def bfs(
     start: tuple[int, int],
     goal: tuple[int, int],
 ) -> list[tuple[int, int]]:
-    """Return the shortest path from start to goal using BFS."""
     queue = deque([start])
-
     visited = {start}
 
-    came_from: dict[
-        tuple[int, int],
-        tuple[int, int] | None,
-    ] = {
+    came_from = {
         start: None
     }
 
@@ -198,7 +189,6 @@ def grid_center(
     row: int,
     column: int,
 ) -> tuple[int, int]:
-    """Convert a grid position to its pixel centre."""
     x = column * TILE_SIZE + TILE_SIZE // 2
 
     y = (
@@ -214,7 +204,6 @@ def draw_maze(
     screen: pygame.Surface,
     maze: list[list[str]],
 ) -> None:
-    """Draw the maze and pellets."""
     for row_index, row in enumerate(maze):
         for column_index, tile in enumerate(row):
             x = column_index * TILE_SIZE
@@ -261,7 +250,6 @@ def draw_bfs_path(
     screen: pygame.Surface,
     path: list[tuple[int, int]],
 ) -> None:
-    """Draw the calculated BFS path."""
     for row, column in path[1:-1]:
         pygame.draw.circle(
             screen,
@@ -276,7 +264,6 @@ def draw_player(
     row: int,
     column: int,
 ) -> None:
-    """Draw the player."""
     pygame.draw.circle(
         screen,
         PLAYER_COLOR,
@@ -290,7 +277,6 @@ def draw_ghost(
     row: int,
     column: int,
 ) -> None:
-    """Draw the ghost."""
     pygame.draw.circle(
         screen,
         GHOST_COLOR,
@@ -305,7 +291,6 @@ def draw_hud(
     score: int,
     path_length: int,
 ) -> None:
-    """Draw score and BFS information."""
     text = font.render(
         f"Score: {score}    BFS path length: {path_length}",
         True,
@@ -322,10 +307,7 @@ def main() -> None:
     screen = pygame.display.set_mode(
         (WINDOW_WIDTH, WINDOW_HEIGHT)
     )
-
-    pygame.display.set_caption(
-        "Maze Chase Pathfinding"
-    )
+    pygame.display.set_caption("Maze Chase Pathfinding")
 
     clock = pygame.time.Clock()
     font = pygame.font.Font(None, 28)
@@ -342,24 +324,11 @@ def main() -> None:
         "G",
     )
 
-    player_position = (
-        player_row,
-        player_column,
-    )
-
-    ghost_position = (
-        ghost_row,
-        ghost_column,
-    )
-
-    bfs_path = bfs(
-        maze,
-        ghost_position,
-        player_position,
-    )
-
     score = 0
     running = True
+
+    # Remember when the ghost last moved.
+    last_ghost_move = pygame.time.get_ticks()
 
     while running:
         for event in pygame.event.get():
@@ -434,20 +403,45 @@ def main() -> None:
                     ):
                         score += 10
 
-                    player_position = (
-                        player_row,
-                        player_column,
-                    )
+        # -----------------------
+        # Ghost pathfinding
+        # -----------------------
 
-                    bfs_path = bfs(
-                        maze,
-                        ghost_position,
-                        player_position,
-                    )
+        player_position = (
+            player_row,
+            player_column,
+        )
+
+        ghost_position = (
+            ghost_row,
+            ghost_column,
+        )
+
+        bfs_path = bfs(
+            maze,
+            ghost_position,
+            player_position,
+        )
+
+        current_time = pygame.time.get_ticks()
+
+        if (
+            current_time - last_ghost_move
+            >= GHOST_MOVE_DELAY
+        ):
+            # bfs_path[0] is the ghost's current tile.
+            # bfs_path[1] is the next tile toward the player.
+            if len(bfs_path) > 1:
+                ghost_row, ghost_column = bfs_path[1]
+
+            last_ghost_move = current_time
 
         screen.fill(PATH_COLOR)
 
-        draw_maze(screen, maze)
+        draw_maze(
+            screen,
+            maze,
+        )
 
         draw_bfs_path(
             screen,

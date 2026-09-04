@@ -150,9 +150,9 @@ A debug mode will eventually display explored tiles and the final calculated pat
 - [x] Render walls, paths, and pellets
 - [x] Add player movement
 - [x] Add wall collision
-- [ ] Add pellet collection
-- [ ] Implement Breadth-First Search
-- [ ] Add a pathfinding enemy
+- [x] Add pellet collection
+- [x] Implement Breadth-First Search
+- [x] Add a pathfinding enemy
 - [ ] Implement A*
 - [ ] Add path visualization
 - [ ] Add scoring and game states
