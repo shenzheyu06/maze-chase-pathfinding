@@ -1,100 +1,31 @@
 import pygame
 
+from maze import (
+    COLUMNS,
+    HUD_HEIGHT,
+    PATH_COLOR,
+    ROWS,
+    TILE_SIZE,
+    create_maze,
+    draw_maze,
+    find_start,
+    is_walkable,
+    validate_maze,
+)
 from pathfinding.bfs import bfs
 
-TILE_SIZE = 32
-HUD_HEIGHT = 40
+
 FPS = 60
 GHOST_MOVE_DELAY = 300
 
-WALL_COLOR = (20, 40, 180)
-WALL_OUTLINE_COLOR = (70, 110, 255)
-PATH_COLOR = (0, 0, 0)
-PELLET_COLOR = (240, 240, 240)
 PLAYER_COLOR = (255, 255, 0)
 GHOST_COLOR = (255, 50, 50)
 BFS_PATH_COLOR = (50, 200, 100)
 TEXT_COLOR = (255, 255, 255)
 GAME_OVER_COLOR = (255, 255, 255)
 
-
-# # = wall
-# . = path with pellet
-# P = player starting position
-# G = ghost starting position
-MAZE_LAYOUT = [
-    "#####################",
-    "#G........#.........#",
-    "#.###.###.#.###.###.#",
-    "#.#...............#.#",
-    "#.#.###.#####.###.#.#",
-    "#.....#...#...#.....#",
-    "#####.#.#.#.#.#.#####",
-    "#.....#.#...#.#.....#",
-    "#.#####.##.##.#####.#",
-    "#.........P.........#",
-    "#.#####.##.##.#####.#",
-    "#.....#.#...#.#.....#",
-    "#####.#.#.#.#.#.#####",
-    "#.....#...#...#.....#",
-    "#.#.###.#####.###.#.#",
-    "#.#...............#.#",
-    "#.###.###.#.###.###.#",
-    "#.........#.........#",
-    "#####################",
-]
-
-ROWS = len(MAZE_LAYOUT)
-COLUMNS = len(MAZE_LAYOUT[0])
-
 WINDOW_WIDTH = COLUMNS * TILE_SIZE
 WINDOW_HEIGHT = ROWS * TILE_SIZE + HUD_HEIGHT
-
-
-def create_maze() -> list[list[str]]:
-    """Create a mutable copy of the maze."""
-    return [list(row) for row in MAZE_LAYOUT]
-
-
-def validate_maze() -> None:
-    """Check that every maze row has the same number of columns."""
-    for row_index, row in enumerate(MAZE_LAYOUT):
-        if len(row) != COLUMNS:
-            raise ValueError(
-                f"Row {row_index} has {len(row)} columns; "
-                f"expected {COLUMNS}."
-            )
-
-
-def find_start(
-    maze: list[list[str]],
-    symbol: str,
-) -> tuple[int, int]:
-    """Find a start symbol and replace it with an empty tile."""
-    for row_index, row in enumerate(maze):
-        for column_index, tile in enumerate(row):
-            if tile == symbol:
-                maze[row_index][column_index] = " "
-                return row_index, column_index
-
-    raise ValueError(
-        f"The maze does not contain '{symbol}'."
-    )
-
-
-def is_walkable(
-    maze: list[list[str]],
-    row: int,
-    column: int,
-) -> bool:
-    """Return whether the given tile can be entered."""
-    if row < 0 or row >= ROWS:
-        return False
-
-    if column < 0 or column >= COLUMNS:
-        return False
-
-    return maze[row][column] != "#"
 
 
 def move_player(
@@ -104,7 +35,7 @@ def move_player(
     row_change: int,
     column_change: int,
 ) -> tuple[int, int]:
-    """Move the player if the destination is walkable."""
+    """Move the player if the destination tile is walkable."""
     new_row = player_row + row_change
     new_column = player_column + column_change
 
@@ -123,7 +54,7 @@ def collect_pellet(
     row: int,
     column: int,
 ) -> bool:
-    """Remove a pellet if one exists."""
+    """Remove a pellet if one exists on the tile."""
     if maze[row][column] == ".":
         maze[row][column] = " "
         return True
@@ -137,7 +68,7 @@ def positions_collide(
     ghost_row: int,
     ghost_column: int,
 ) -> bool:
-    """Return whether player and ghost occupy the same tile."""
+    """Return whether the player and ghost occupy the same tile."""
     return (
         player_row == ghost_row
         and player_column == ghost_column
@@ -152,7 +83,7 @@ def reset_game() -> tuple[
     int,
     int,
 ]:
-    """Reset maze, positions, and score."""
+    """Reset the maze, positions, and score."""
     maze = create_maze()
 
     player_row, player_column = find_start(
@@ -194,56 +125,6 @@ def grid_center(
     )
 
     return x, y
-
-
-def draw_maze(
-    screen: pygame.Surface,
-    maze: list[list[str]],
-) -> None:
-    """Draw walls and pellets."""
-    for row_index, row in enumerate(maze):
-        for column_index, tile in enumerate(row):
-            x = column_index * TILE_SIZE
-            y = (
-                row_index * TILE_SIZE
-                + HUD_HEIGHT
-            )
-
-            tile_rect = pygame.Rect(
-                x,
-                y,
-                TILE_SIZE,
-                TILE_SIZE,
-            )
-
-            if tile == "#":
-                pygame.draw.rect(
-                    screen,
-                    WALL_COLOR,
-                    tile_rect,
-                )
-
-                pygame.draw.rect(
-                    screen,
-                    WALL_OUTLINE_COLOR,
-                    tile_rect,
-                    width=2,
-                )
-
-            else:
-                pygame.draw.rect(
-                    screen,
-                    PATH_COLOR,
-                    tile_rect,
-                )
-
-                if tile == ".":
-                    pygame.draw.circle(
-                        screen,
-                        PELLET_COLOR,
-                        tile_rect.center,
-                        3,
-                    )
 
 
 def draw_bfs_path(
@@ -294,7 +175,7 @@ def draw_hud(
     score: int,
     path_length: int,
 ) -> None:
-    """Draw score and BFS information."""
+    """Draw score and pathfinding information."""
     text = font.render(
         (
             f"Score: {score}    "
@@ -314,7 +195,7 @@ def draw_game_over(
     screen: pygame.Surface,
     font: pygame.font.Font,
 ) -> None:
-    """Draw game-over information."""
+    """Draw the game-over screen."""
     game_over_text = font.render(
         "GAME OVER",
         True,
@@ -353,7 +234,7 @@ def draw_game_over(
 
 
 def run_game() -> None:
-    """Initialize and run the main game loop."""
+    """Initialize and run the game."""
     validate_maze()
 
     pygame.init()
@@ -392,6 +273,7 @@ def run_game() -> None:
                 running = False
 
             if event.type == pygame.KEYDOWN:
+
                 if game_over:
                     if event.key == pygame.K_r:
                         (
@@ -404,6 +286,7 @@ def run_game() -> None:
                         ) = reset_game()
 
                         game_over = False
+
                         last_ghost_move = (
                             pygame.time.get_ticks()
                         )
@@ -420,56 +303,48 @@ def run_game() -> None:
                     pygame.K_UP,
                     pygame.K_w,
                 ):
-                    player_row, player_column = (
-                        move_player(
-                            maze,
-                            player_row,
-                            player_column,
-                            -1,
-                            0,
-                        )
+                    player_row, player_column = move_player(
+                        maze,
+                        player_row,
+                        player_column,
+                        -1,
+                        0,
                     )
 
                 elif event.key in (
                     pygame.K_DOWN,
                     pygame.K_s,
                 ):
-                    player_row, player_column = (
-                        move_player(
-                            maze,
-                            player_row,
-                            player_column,
-                            1,
-                            0,
-                        )
+                    player_row, player_column = move_player(
+                        maze,
+                        player_row,
+                        player_column,
+                        1,
+                        0,
                     )
 
                 elif event.key in (
                     pygame.K_LEFT,
                     pygame.K_a,
                 ):
-                    player_row, player_column = (
-                        move_player(
-                            maze,
-                            player_row,
-                            player_column,
-                            0,
-                            -1,
-                        )
+                    player_row, player_column = move_player(
+                        maze,
+                        player_row,
+                        player_column,
+                        0,
+                        -1,
                     )
 
                 elif event.key in (
                     pygame.K_RIGHT,
                     pygame.K_d,
                 ):
-                    player_row, player_column = (
-                        move_player(
-                            maze,
-                            player_row,
-                            player_column,
-                            0,
-                            1,
-                        )
+                    player_row, player_column = move_player(
+                        maze,
+                        player_row,
+                        player_column,
+                        0,
+                        1,
                     )
 
                 elif event.key == pygame.K_ESCAPE:
