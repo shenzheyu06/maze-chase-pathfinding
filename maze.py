@@ -77,10 +77,10 @@ def is_walkable(
     column: int,
 ) -> bool:
     """Return whether a tile can be entered."""
-    if row < 0 or row >= ROWS:
+    if row < 0 or row >= len(maze):
         return False
 
-    if column < 0 or column >= COLUMNS:
+    if column < 0 or column >= len(maze[row]):
         return False
 
     return maze[row][column] != "#"

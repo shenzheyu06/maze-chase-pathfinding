@@ -253,11 +253,19 @@ def run_game() -> None:
 
         if not game_over:
             current_time = pygame.time.get_ticks()
+            previous_ghost_position = ghost.position
 
             ghost.move_along_path(
                 bfs_path,
                 current_time,
             )
+
+            if ghost.position != previous_ghost_position:
+                bfs_path = bfs(
+                    maze,
+                    ghost.position,
+                    player.position,
+                )
 
             if entities_collide(
                 player,
