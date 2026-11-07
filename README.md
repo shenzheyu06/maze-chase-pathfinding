@@ -8,7 +8,19 @@ A tile-based maze chase game built with Python and Pygame Community Edition to p
 - Pellet collection and scoring
 - A ghost that follows a shortest route using BFS or A*, switchable during play
 - Live route and explored-tile visualization, with path length and visited count
-- Game-over detection and restart
+- Win and game-over detection, with restart
+
+## Controls
+
+- Arrow keys or WASD: move the player
+- Tab: switch between BFS and A*
+- O: toggle debug mode and its visual overlays
+- V: toggle explored tiles while debug mode is on
+- P: toggle the projected ghost path while debug mode is on
+- R: restart after winning or game over
+- Esc: quit
+
+The explored-tile and path settings are restored when debug mode is turned back on.
 
 ## Planned Features
 

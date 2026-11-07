@@ -97,12 +97,13 @@ def draw_hud(
     )
 
 
-def draw_game_over(
+def draw_end_screen(
     screen: pygame.Surface,
     font: pygame.font.Font,
+    message: str,
 ) -> None:
-    game_over_text = font.render(
-        "GAME OVER",
+    end_text = font.render(
+        message,
         True,
         GAME_OVER_COLOR,
     )
@@ -113,7 +114,7 @@ def draw_game_over(
         GAME_OVER_COLOR,
     )
 
-    game_over_rect = game_over_text.get_rect(
+    end_rect = end_text.get_rect(
         center=(
             WINDOW_WIDTH // 2,
             WINDOW_HEIGHT // 2 - 20,
@@ -128,8 +129,8 @@ def draw_game_over(
     )
 
     screen.blit(
-        game_over_text,
-        game_over_rect,
+        end_text,
+        end_rect,
     )
 
     screen.blit(
@@ -197,8 +198,11 @@ def run_game() -> None:
 
     running = True
     game_over = False
+    won = False
     algorithm_name = "BFS"
+    debug_mode = False
     show_exploration = True
+    show_path = True
     pathfinders = {"BFS": bfs_search, "A*": astar_search}
 
     while running:
@@ -207,10 +211,18 @@ def run_game() -> None:
                 running = False
 
             if event.type == pygame.KEYDOWN:
-                if game_over:
+                if event.key == pygame.K_o:
+                    debug_mode = not debug_mode
+                elif debug_mode and event.key == pygame.K_v:
+                    show_exploration = not show_exploration
+                elif debug_mode and event.key == pygame.K_p:
+                    show_path = not show_path
+
+                if game_over or won:
                     if event.key == pygame.K_r:
                         maze, player, ghost = reset_game()
                         game_over = False
+                        won = False
                         ghost.reset_move_timer()
 
                     elif event.key == pygame.K_ESCAPE:
@@ -264,14 +276,13 @@ def run_game() -> None:
                 elif event.key == pygame.K_TAB:
                     algorithm_name = "A*" if algorithm_name == "BFS" else "BFS"
 
-                elif event.key == pygame.K_v:
-                    show_exploration = not show_exploration
-
                 if entities_collide(
                     player,
                     ghost,
                 ):
                     game_over = True
+                elif not any("." in row for row in maze):
+                    won = True
 
         pathfinder = pathfinders[algorithm_name]
         result = pathfinder(
@@ -280,7 +291,7 @@ def run_game() -> None:
             player.position,
         )
 
-        if not game_over:
+        if not game_over and not won:
             current_time = pygame.time.get_ticks()
             previous_ghost_position = ghost.position
 
@@ -309,16 +320,17 @@ def run_game() -> None:
             maze,
         )
 
-        if show_exploration:
+        if debug_mode and show_exploration:
             draw_explored_tiles(
                 screen,
                 result.explored,
             )
 
-        draw_path(
-            screen,
-            result.path,
-        )
+        if debug_mode and show_path:
+            draw_path(
+                screen,
+                result.path,
+            )
 
         player.draw(screen)
         ghost.draw(screen)
@@ -332,10 +344,11 @@ def run_game() -> None:
             algorithm_name,
         )
 
-        if game_over:
-            draw_game_over(
+        if game_over or won:
+            draw_end_screen(
                 screen,
                 font,
+                "GAME OVER" if game_over else "YOU WIN!",
             )
 
         pygame.display.flip()
