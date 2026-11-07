@@ -1,15 +1,17 @@
 from collections import deque
 
 from pathfinding.grid import get_neighbors
+from pathfinding.result import SearchResult
 
 
-def bfs(
+def bfs_search(
     maze: list[list[str]],
     start: tuple[int, int],
     goal: tuple[int, int],
-) -> list[tuple[int, int]]:
+) -> SearchResult:
     queue = deque([start])
     visited = {start}
+    explored = []
 
     came_from = {
         start: None
@@ -17,6 +19,7 @@ def bfs(
 
     while queue:
         current = queue.popleft()
+        explored.append(current)
 
         if current == goal:
             break
@@ -28,7 +31,7 @@ def bfs(
                 came_from[neighbor] = current
 
     if goal not in came_from:
-        return []
+        return SearchResult([], explored)
 
     path = []
     current = goal
@@ -39,4 +42,12 @@ def bfs(
 
     path.reverse()
 
-    return path
+    return SearchResult(path, explored)
+
+
+def bfs(
+    maze: list[list[str]],
+    start: tuple[int, int],
+    goal: tuple[int, int],
+) -> list[tuple[int, int]]:
+    return bfs_search(maze, start, goal).path

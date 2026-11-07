@@ -1,6 +1,8 @@
+import pytest
+
 from maze import create_maze, is_walkable
-from pathfinding.astar import astar
-from pathfinding.bfs import bfs
+from pathfinding.astar import astar, astar_search
+from pathfinding.bfs import bfs, bfs_search
 from player import Player
 
 
@@ -48,6 +50,18 @@ def test_astar_handles_unreachable_and_same_tile_goals():
 
     assert astar(maze, (0, 0), (0, 2)) == []
     assert astar(maze, (0, 0), (0, 0)) == [(0, 0)]
+
+
+@pytest.mark.parametrize("search", [bfs_search, astar_search])
+def test_search_records_tiles_removed_from_the_queue(search):
+    result = search([list("...")], (0, 0), (0, 2))
+
+    assert result.path == [(0, 0), (0, 1), (0, 2)]
+    assert result.explored == [(0, 0), (0, 1), (0, 2)]
+
+    unreachable = search([list(".#.")], (0, 0), (0, 2))
+    assert unreachable.path == []
+    assert unreachable.explored == [(0, 0)]
 
 
 def test_player_respects_walls_and_collects_each_pellet_once():

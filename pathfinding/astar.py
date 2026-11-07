@@ -2,6 +2,7 @@ from heapq import heappop, heappush
 from itertools import count
 
 from pathfinding.grid import get_neighbors
+from pathfinding.result import SearchResult
 
 
 def manhattan_distance(
@@ -14,16 +15,17 @@ def manhattan_distance(
     return abs(position[0] - goal[0]) + abs(position[1] - goal[1])
 
 
-def astar(
+def astar_search(
     maze: list[list[str]],
     start: tuple[int, int],
     goal: tuple[int, int],
-) -> list[tuple[int, int]]:
+) -> SearchResult:
     """Find a shortest path through the maze using A*."""
     tie_breaker = count()
     frontier = [(manhattan_distance(start, goal), next(tie_breaker), 0, start)]
     best_cost = {start: 0}
     came_from = {start: None}
+    explored = []
 
     while frontier:
         _, _, cost, current = heappop(frontier)
@@ -32,12 +34,14 @@ def astar(
         if cost != best_cost[current]:
             continue
 
+        explored.append(current)
+
         if current == goal:
             path = []
             while current is not None:
                 path.append(current)
                 current = came_from[current]
-            return path[::-1]
+            return SearchResult(path[::-1], explored)
 
         for neighbor in get_neighbors(maze, current):
             # Every move costs one; keep only a shorter route to each tile.
@@ -52,4 +56,12 @@ def astar(
             priority = next_cost + manhattan_distance(neighbor, goal)
             heappush(frontier, (priority, next(tie_breaker), next_cost, neighbor))
 
-    return []
+    return SearchResult([], explored)
+
+
+def astar(
+    maze: list[list[str]],
+    start: tuple[int, int],
+    goal: tuple[int, int],
+) -> list[tuple[int, int]]:
+    return astar_search(maze, start, goal).path

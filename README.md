@@ -7,14 +7,13 @@ A tile-based maze chase game built with Python and Pygame Community Edition to p
 - Grid-based maze rendering, player movement, and wall collision
 - Pellet collection and scoring
 - A ghost that follows a shortest route using BFS or A*, switchable during play
-- Path recalculation each frame, with the route and path length displayed
+- Live route and explored-tile visualization, with path length and visited count
 - Game-over detection and restart
 
 ## Planned Features
 
 - Multiple enemy targeting behaviours
-- Debug visualization of explored tiles
-- Algorithm comparisons using visited tiles, path length, and search time
+- Algorithm comparisons using search time
 
 ## Project Structure
 

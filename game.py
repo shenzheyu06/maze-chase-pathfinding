@@ -12,14 +12,15 @@ from maze import (
     find_start,
     validate_maze,
 )
-from pathfinding.astar import astar
-from pathfinding.bfs import bfs
+from pathfinding.astar import astar_search
+from pathfinding.bfs import bfs_search
 from player import Player
 
 
 FPS = 60
 
 ROUTE_COLOR = (50, 200, 100)
+EXPLORED_COLOR = (150, 90, 230, 70)
 TEXT_COLOR = (255, 255, 255)
 GAME_OVER_COLOR = (255, 255, 255)
 
@@ -58,17 +59,33 @@ def draw_path(
         )
 
 
+def draw_explored_tiles(
+    screen: pygame.Surface,
+    explored: list[tuple[int, int]],
+) -> None:
+    tile = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+    tile.fill(EXPLORED_COLOR)
+
+    for row, column in explored:
+        screen.blit(
+            tile,
+            (column * TILE_SIZE, row * TILE_SIZE + HUD_HEIGHT),
+        )
+
+
 def draw_hud(
     screen: pygame.Surface,
     font: pygame.font.Font,
     score: int,
     path_length: int,
+    visited_count: int,
     algorithm_name: str,
 ) -> None:
     text = font.render(
         (
             f"Score: {score}    "
-            f"{algorithm_name} path length: {path_length}"
+            f"{algorithm_name} path: {path_length}    "
+            f"Visited: {visited_count}"
         ),
         True,
         TEXT_COLOR,
@@ -181,7 +198,8 @@ def run_game() -> None:
     running = True
     game_over = False
     algorithm_name = "BFS"
-    pathfinders = {"BFS": bfs, "A*": astar}
+    show_exploration = True
+    pathfinders = {"BFS": bfs_search, "A*": astar_search}
 
     while running:
         for event in pygame.event.get():
@@ -246,6 +264,9 @@ def run_game() -> None:
                 elif event.key == pygame.K_TAB:
                     algorithm_name = "A*" if algorithm_name == "BFS" else "BFS"
 
+                elif event.key == pygame.K_v:
+                    show_exploration = not show_exploration
+
                 if entities_collide(
                     player,
                     ghost,
@@ -253,7 +274,7 @@ def run_game() -> None:
                     game_over = True
 
         pathfinder = pathfinders[algorithm_name]
-        path = pathfinder(
+        result = pathfinder(
             maze,
             ghost.position,
             player.position,
@@ -264,12 +285,12 @@ def run_game() -> None:
             previous_ghost_position = ghost.position
 
             ghost.move_along_path(
-                path,
+                result.path,
                 current_time,
             )
 
             if ghost.position != previous_ghost_position:
-                path = pathfinder(
+                result = pathfinder(
                     maze,
                     ghost.position,
                     player.position,
@@ -288,9 +309,15 @@ def run_game() -> None:
             maze,
         )
 
+        if show_exploration:
+            draw_explored_tiles(
+                screen,
+                result.explored,
+            )
+
         draw_path(
             screen,
-            path,
+            result.path,
         )
 
         player.draw(screen)
@@ -300,7 +327,8 @@ def run_game() -> None:
             screen,
             font,
             player.score,
-            max(0, len(path) - 1),
+            max(0, len(result.path) - 1),
+            len(result.explored),
             algorithm_name,
         )
 
