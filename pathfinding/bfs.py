@@ -1,36 +1,6 @@
 from collections import deque
 
-
-def get_neighbors(
-    maze: list[list[str]],
-    position: tuple[int, int],
-) -> list[tuple[int, int]]:
-    row, column = position
-
-    directions = [
-        (-1, 0),
-        (1, 0),
-        (0, -1),
-        (0, 1),
-    ]
-
-    rows = len(maze)
-    columns = len(maze[0])
-
-    neighbors = []
-
-    for row_change, column_change in directions:
-        new_row = row + row_change
-        new_column = column + column_change
-
-        if (
-            0 <= new_row < rows
-            and 0 <= new_column < columns
-            and maze[new_row][new_column] != "#"
-        ):
-            neighbors.append((new_row, new_column))
-
-    return neighbors
+from pathfinding.grid import get_neighbors
 
 
 def bfs(

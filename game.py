@@ -12,13 +12,14 @@ from maze import (
     find_start,
     validate_maze,
 )
+from pathfinding.astar import astar
 from pathfinding.bfs import bfs
 from player import Player
 
 
 FPS = 60
 
-BFS_PATH_COLOR = (50, 200, 100)
+ROUTE_COLOR = (50, 200, 100)
 TEXT_COLOR = (255, 255, 255)
 GAME_OVER_COLOR = (255, 255, 255)
 
@@ -44,14 +45,14 @@ def grid_center(
     return x, y
 
 
-def draw_bfs_path(
+def draw_path(
     screen: pygame.Surface,
     path: list[tuple[int, int]],
 ) -> None:
     for row, column in path[1:-1]:
         pygame.draw.circle(
             screen,
-            BFS_PATH_COLOR,
+            ROUTE_COLOR,
             grid_center(row, column),
             5,
         )
@@ -62,11 +63,12 @@ def draw_hud(
     font: pygame.font.Font,
     score: int,
     path_length: int,
+    algorithm_name: str,
 ) -> None:
     text = font.render(
         (
             f"Score: {score}    "
-            f"BFS path length: {path_length}"
+            f"{algorithm_name} path length: {path_length}"
         ),
         True,
         TEXT_COLOR,
@@ -178,6 +180,8 @@ def run_game() -> None:
 
     running = True
     game_over = False
+    algorithm_name = "BFS"
+    pathfinders = {"BFS": bfs, "A*": astar}
 
     while running:
         for event in pygame.event.get():
@@ -239,13 +243,17 @@ def run_game() -> None:
                 elif event.key == pygame.K_ESCAPE:
                     running = False
 
+                elif event.key == pygame.K_TAB:
+                    algorithm_name = "A*" if algorithm_name == "BFS" else "BFS"
+
                 if entities_collide(
                     player,
                     ghost,
                 ):
                     game_over = True
 
-        bfs_path = bfs(
+        pathfinder = pathfinders[algorithm_name]
+        path = pathfinder(
             maze,
             ghost.position,
             player.position,
@@ -256,12 +264,12 @@ def run_game() -> None:
             previous_ghost_position = ghost.position
 
             ghost.move_along_path(
-                bfs_path,
+                path,
                 current_time,
             )
 
             if ghost.position != previous_ghost_position:
-                bfs_path = bfs(
+                path = pathfinder(
                     maze,
                     ghost.position,
                     player.position,
@@ -280,9 +288,9 @@ def run_game() -> None:
             maze,
         )
 
-        draw_bfs_path(
+        draw_path(
             screen,
-            bfs_path,
+            path,
         )
 
         player.draw(screen)
@@ -292,7 +300,8 @@ def run_game() -> None:
             screen,
             font,
             player.score,
-            max(0, len(bfs_path) - 1),
+            max(0, len(path) - 1),
+            algorithm_name,
         )
 
         if game_over:

@@ -1,4 +1,5 @@
-from maze import is_walkable
+from maze import create_maze, is_walkable
+from pathfinding.astar import astar
 from pathfinding.bfs import bfs
 from player import Player
 
@@ -20,6 +21,33 @@ def test_bfs_handles_unreachable_and_same_tile_goals():
 
     assert bfs(maze, (0, 0), (0, 2)) == []
     assert bfs(maze, (0, 0), (0, 0)) == [(0, 0)]
+
+
+def test_astar_finds_shortest_walkable_routes_in_the_game_maze():
+    maze = create_maze()
+
+    for start, goal in [
+        ((1, 1), (9, 10)),
+        ((9, 10), (17, 19)),
+        ((17, 19), (1, 1)),
+    ]:
+        path = astar(maze, start, goal)
+
+        assert path[0] == start
+        assert path[-1] == goal
+        assert len(path) == len(bfs(maze, start, goal))
+        assert all(is_walkable(maze, row, column) for row, column in path)
+        assert all(
+            abs(a[0] - b[0]) + abs(a[1] - b[1]) == 1
+            for a, b in zip(path, path[1:])
+        )
+
+
+def test_astar_handles_unreachable_and_same_tile_goals():
+    maze = [list(".#.")]
+
+    assert astar(maze, (0, 0), (0, 2)) == []
+    assert astar(maze, (0, 0), (0, 0)) == [(0, 0)]
 
 
 def test_player_respects_walls_and_collects_each_pellet_once():
