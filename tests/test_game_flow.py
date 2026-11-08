@@ -25,8 +25,16 @@ def test_last_pellet_wins_and_restart_resets_game(monkeypatch):
         ]
     )
     messages = []
+    comparisons = []
+
+    real_compare_searches = game.compare_searches
+
+    def compare_searches(maze, start, goal):
+        comparisons.append((start, goal))
+        return real_compare_searches(maze, start, goal)
 
     monkeypatch.setattr(game, "reset_game", reset_game)
+    monkeypatch.setattr(game, "compare_searches", compare_searches)
     monkeypatch.setattr(pygame.event, "get", lambda: next(event_batches))
     monkeypatch.setattr(
         game,
@@ -41,3 +49,4 @@ def test_last_pellet_wins_and_restart_resets_game(monkeypatch):
     assert players[1].position == (0, 0)
     assert players[1].score == 0
     assert messages == ["YOU WIN!", "YOU WIN!"]
+    assert comparisons == [((0, 3), (0, 1)), ((0, 3), (0, 0))]

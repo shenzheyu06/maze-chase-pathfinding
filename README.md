@@ -7,7 +7,8 @@ A tile-based maze chase game built with Python and Pygame Community Edition to p
 - Grid-based maze rendering, player movement, and wall collision
 - Pellet collection and scoring
 - A ghost that follows a shortest route using BFS or A*, switchable during play
-- Live route and explored-tile visualization, with path length and visited count
+- Live route and explored-tile visualization
+- Debug-mode BFS and A* comparison of path length, visited tiles, and average search time
 - Win and game-over detection, with restart
 
 ## Controls
@@ -21,11 +22,11 @@ A tile-based maze chase game built with Python and Pygame Community Edition to p
 - Esc: quit
 
 The explored-tile and path settings are restored when debug mode is turned back on.
+In debug mode, a "DEBUG MODE" label appears beside aligned HUD columns comparing BFS and A* for the current ghost and player tiles. Search times average 20 runs and update when either moves. The `>` marker shows which algorithm controls the ghost. The score remains visible when debug mode is off.
 
 ## Planned Features
 
 - Multiple enemy targeting behaviours
-- Algorithm comparisons using search time
 
 ## Project Structure
 

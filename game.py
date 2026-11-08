@@ -12,8 +12,7 @@ from maze import (
     find_start,
     validate_maze,
 )
-from pathfinding.astar import astar_search
-from pathfinding.bfs import bfs_search
+from pathfinding.comparison import SearchComparison, compare_searches
 from player import Player
 
 
@@ -77,24 +76,33 @@ def draw_hud(
     screen: pygame.Surface,
     font: pygame.font.Font,
     score: int,
-    path_length: int,
-    visited_count: int,
+    comparisons: dict[str, SearchComparison],
     algorithm_name: str,
+    debug_mode: bool,
 ) -> None:
-    text = font.render(
-        (
-            f"Score: {score}    "
-            f"{algorithm_name} path: {path_length}    "
-            f"Visited: {visited_count}"
-        ),
-        True,
-        TEXT_COLOR,
-    )
+    score_text = font.render(f"Score: {score}", True, TEXT_COLOR)
+    screen.blit(score_text, (10, 4 if debug_mode else 19))
 
-    screen.blit(
-        text,
-        (10, 8),
-    )
+    if not debug_mode:
+        return
+
+    debug_text = font.render("DEBUG MODE", True, TEXT_COLOR)
+    screen.blit(debug_text, (10, 31))
+
+    for row, name in enumerate(("BFS", "A*")):
+        comparison = comparisons[name]
+        path_length = max(0, len(comparison.result.path) - 1)
+        marker = ">" if name == algorithm_name else " "
+        y = 4 + row * 27
+        columns = (
+            (160, f"{marker} {name}"),
+            (250, f"{path_length} steps"),
+            (370, f"{len(comparison.result.explored)} visited"),
+            (490, f"{comparison.average_ms:.3f} ms avg"),
+        )
+        for x, label in columns:
+            text = font.render(label, True, TEXT_COLOR)
+            screen.blit(text, (x, y))
 
 
 def draw_end_screen(
@@ -192,7 +200,8 @@ def run_game() -> None:
     )
 
     clock = pygame.time.Clock()
-    font = pygame.font.Font(None, 28)
+    font = pygame.font.Font(None, 24)
+    end_font = pygame.font.Font(None, 28)
 
     maze, player, ghost = reset_game()
 
@@ -203,7 +212,8 @@ def run_game() -> None:
     debug_mode = False
     show_exploration = True
     show_path = True
-    pathfinders = {"BFS": bfs_search, "A*": astar_search}
+    comparison_positions = None
+    comparisons = None
 
     while running:
         for event in pygame.event.get():
@@ -224,6 +234,7 @@ def run_game() -> None:
                         game_over = False
                         won = False
                         ghost.reset_move_timer()
+                        comparison_positions = None
 
                     elif event.key == pygame.K_ESCAPE:
                         running = False
@@ -284,12 +295,11 @@ def run_game() -> None:
                 elif not any("." in row for row in maze):
                     won = True
 
-        pathfinder = pathfinders[algorithm_name]
-        result = pathfinder(
-            maze,
-            ghost.position,
-            player.position,
-        )
+        positions = (ghost.position, player.position)
+        if positions != comparison_positions:
+            comparisons = compare_searches(maze, *positions)
+            comparison_positions = positions
+        result = comparisons[algorithm_name].result
 
         if not game_over and not won:
             current_time = pygame.time.get_ticks()
@@ -301,11 +311,9 @@ def run_game() -> None:
             )
 
             if ghost.position != previous_ghost_position:
-                result = pathfinder(
-                    maze,
-                    ghost.position,
-                    player.position,
-                )
+                comparison_positions = (ghost.position, player.position)
+                comparisons = compare_searches(maze, *comparison_positions)
+                result = comparisons[algorithm_name].result
 
             if entities_collide(
                 player,
@@ -339,15 +347,15 @@ def run_game() -> None:
             screen,
             font,
             player.score,
-            max(0, len(result.path) - 1),
-            len(result.explored),
+            comparisons,
             algorithm_name,
+            debug_mode,
         )
 
         if game_over or won:
             draw_end_screen(
                 screen,
-                font,
+                end_font,
                 "GAME OVER" if game_over else "YOU WIN!",
             )
 
