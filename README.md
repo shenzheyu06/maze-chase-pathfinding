@@ -5,6 +5,7 @@ A tile-based maze chase game built with Python and Pygame Community Edition to p
 ## Current Features
 
 - Grid-based maze rendering, player movement, and wall collision
+- Smooth visual movement between grid cells for the player and ghosts
 - Pellet collection and scoring
 - Power pellets make ghosts vulnerable for six seconds; eaten ghosts stay gone until a new game
 - Three lives; losing a life resets positions while keeping score and collected pellets
@@ -36,6 +37,7 @@ Large pellets activate the power effect. The HUD shows its remaining time, and v
 | File | Purpose |
 |---|---|
 | `main.py` | Application entry point |
+| `animation.py` | Visual interpolation between grid cells |
 | `game.py` | Game loop, input handling, HUD, and game states |
 | `maze.py` | Maze layout, validation, collision checks, and rendering |
 | `player.py` | Player movement, pellet collection, and score |

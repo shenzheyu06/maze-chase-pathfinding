@@ -2,6 +2,7 @@ from random import choice
 
 import pygame
 
+from animation import GridMotion
 from maze import HUD_HEIGHT, TILE_SIZE
 from pathfinding.flee import distances_from
 
@@ -30,6 +31,7 @@ class Ghost:
         self.chasing = False
         self.patrol_target: tuple[int, int] | None = None
         self.last_move_time = pygame.time.get_ticks()
+        self.motion = GridMotion(self.position)
 
     @property
     def position(self) -> tuple[int, int]:
@@ -52,6 +54,7 @@ class Ghost:
         ):
             self.previous_position = self.position
             self.row, self.column = path[1]
+            self.motion.move_to(self.position, current_time, self.move_delay)
 
         self.last_move_time = current_time
 
@@ -63,6 +66,7 @@ class Ghost:
         self.previous_position = None
         self.chasing = False
         self.patrol_target = None
+        self.motion.snap_to(self.position)
         self.reset_move_timer()
 
     def ensure_patrol_target(
@@ -103,14 +107,18 @@ class Ghost:
         screen: pygame.Surface,
         vulnerable: bool = False,
         selected: bool = False,
+        current_time: int | None = None,
     ) -> None:
+        if current_time is None:
+            current_time = pygame.time.get_ticks()
+        row, column = self.motion.position_at(current_time)
         center_x = (
-            self.column * TILE_SIZE
+            column * TILE_SIZE
             + TILE_SIZE // 2
         )
 
         center_y = (
-            self.row * TILE_SIZE
+            row * TILE_SIZE
             + TILE_SIZE // 2
             + HUD_HEIGHT
         )
@@ -118,7 +126,7 @@ class Ghost:
         pygame.draw.circle(
             screen,
             VULNERABLE_COLOR if vulnerable else self.color,
-            (center_x, center_y),
+            (round(center_x), round(center_y)),
             TILE_SIZE // 3,
         )
 
@@ -126,7 +134,7 @@ class Ghost:
             pygame.draw.circle(
                 screen,
                 SELECTION_COLOR,
-                (center_x, center_y),
+                (round(center_x), round(center_y)),
                 TILE_SIZE // 3 + 4,
                 width=2,
             )

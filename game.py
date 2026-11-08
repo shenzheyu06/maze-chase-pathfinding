@@ -333,8 +333,10 @@ def run_game() -> None:
                 if event.key == pygame.K_SPACE:
                     if paused:
                         paused_duration = pygame.time.get_ticks() - pause_started_at
+                        player.motion.shift_time(paused_duration)
                         for ghost in ghosts:
                             ghost.last_move_time += paused_duration
+                            ghost.motion.shift_time(paused_duration)
                         if powered_until:
                             powered_until += paused_duration
                         paused = False
@@ -581,12 +583,13 @@ def run_game() -> None:
                 fleeing or patrolling or avoiding,
             )
 
-        player.draw(screen)
+        player.draw(screen, display_time)
         for ghost in ghosts:
             ghost.draw(
                 screen,
                 display_time < powered_until,
                 debug_mode and ghost is selected_ghost,
+                display_time,
             )
 
         ghost_label = (

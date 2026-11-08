@@ -1,9 +1,11 @@
 import pygame
 
+from animation import GridMotion
 from maze import HUD_HEIGHT, TILE_SIZE, is_walkable
 
 
 PLAYER_COLOR = (255, 255, 0)
+MOVE_ANIMATION_MS = 120
 
 
 class Player:
@@ -12,6 +14,7 @@ class Player:
         self.row = row
         self.column = column
         self.score = 0
+        self.motion = GridMotion(self.position)
 
     @property
     def position(self) -> tuple[int, int]:
@@ -31,6 +34,11 @@ class Player:
             new_row,
             new_column,
         ):
+            self.motion.move_to(
+                (new_row, new_column),
+                pygame.time.get_ticks(),
+                MOVE_ANIMATION_MS,
+            )
             self.row = new_row
             self.column = new_column
 
@@ -40,6 +48,7 @@ class Player:
 
     def reset_position(self) -> None:
         self.row, self.column = self.start_position
+        self.motion.snap_to(self.position)
 
     def collect_pellet(
         self,
@@ -56,14 +65,18 @@ class Player:
     def draw(
         self,
         screen: pygame.Surface,
+        current_time: int | None = None,
     ) -> None:
+        if current_time is None:
+            current_time = pygame.time.get_ticks()
+        row, column = self.motion.position_at(current_time)
         center_x = (
-            self.column * TILE_SIZE
+            column * TILE_SIZE
             + TILE_SIZE // 2
         )
 
         center_y = (
-            self.row * TILE_SIZE
+            row * TILE_SIZE
             + TILE_SIZE // 2
             + HUD_HEIGHT
         )
@@ -71,6 +84,6 @@ class Player:
         pygame.draw.circle(
             screen,
             PLAYER_COLOR,
-            (center_x, center_y),
+            (round(center_x), round(center_y)),
             TILE_SIZE // 3,
         )
