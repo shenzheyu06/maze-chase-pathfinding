@@ -17,6 +17,7 @@ from pathfinding.astar import astar_search
 from pathfinding.bfs import bfs_search
 from pathfinding.comparison import SearchComparison, compare_searches
 from pathfinding.flee import distances_from, flee_path
+from pathfinding.separation import separate_path
 from player import Player
 
 
@@ -469,6 +470,16 @@ def run_game() -> None:
                         search(maze, ghost.position, goal).path
                         if goal is not None else [ghost.position]
                     )
+                movement_path = separate_path(
+                    maze,
+                    ghost.position,
+                    movement_path,
+                    occupied_positions,
+                    player.position if powered or ghost.chasing else (
+                        ghost.patrol_target or ghost.position
+                    ),
+                    powered,
+                )
                 ghost.move_along_path(
                     movement_path, current_time, occupied_positions
                 )
@@ -534,6 +545,22 @@ def run_game() -> None:
             display_path = result.path if result is not None else []
             explored = result.explored if result is not None else []
 
+        avoiding = False
+        if debug_mode and show_path and selected_ghost is not None:
+            other_positions = {
+                ghost.position for ghost in ghosts if ghost is not selected_ghost
+            }
+            separated_path = separate_path(
+                maze,
+                selected_ghost.position,
+                display_path,
+                other_positions,
+                player.position if fleeing else comparison_goal,
+                fleeing,
+            )
+            avoiding = separated_path != display_path
+            display_path = separated_path
+
         screen.fill(PATH_COLOR)
 
         draw_maze(
@@ -551,7 +578,7 @@ def run_game() -> None:
             draw_path(
                 screen,
                 display_path,
-                fleeing or patrolling,
+                fleeing or patrolling or avoiding,
             )
 
         player.draw(screen)

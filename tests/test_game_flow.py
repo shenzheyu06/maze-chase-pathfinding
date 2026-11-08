@@ -333,7 +333,7 @@ def test_multiple_ghosts_move_on_independent_timers(monkeypatch):
                              ((0, 3), (0, 6))]
 
 
-def test_faster_ghost_waits_instead_of_overlapping_ghost_ahead(monkeypatch):
+def test_faster_ghost_moves_away_instead_of_crowding_ghost_ahead(monkeypatch):
     monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
     monkeypatch.setenv("SDL_AUDIODRIVER", "dummy")
 
@@ -366,12 +366,56 @@ def test_faster_ghost_waits_instead_of_overlapping_ghost_ahead(monkeypatch):
 
     assert positions[:5] == [
         ((0, 3), (0, 4)),
-        ((0, 3), (0, 4)),
-        ((0, 2), (0, 3)),
-        ((0, 2), (0, 3)),
-        ((0, 1), (0, 2)),
+        ((0, 3), (0, 5)),
+        ((0, 2), (0, 4)),
+        ((0, 2), (0, 5)),
+        ((0, 1), (0, 4)),
     ]
     assert all(first != second for first, second in positions)
+    assert all(ghost.chasing for ghost in ghosts)
+
+
+def test_separation_keeps_patrol_destinations(monkeypatch):
+    monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
+    monkeypatch.setenv("SDL_AUDIODRIVER", "dummy")
+
+    player = Player(0, 0)
+    ghosts = [Ghost(0, 12), Ghost(0, 13)]
+    targets = [(0, 16), (0, 17)]
+    for ghost, target in zip(ghosts, targets):
+        ghost.last_move_time = 0
+        ghost.patrol_target = target
+    monkeypatch.setattr(
+        game, "reset_game", lambda: ([list(" ..................")], player, ghosts)
+    )
+    frames = iter([
+        (0, []),
+        (300, []),
+        (350, [pygame.event.Event(pygame.QUIT)]),
+    ])
+    now = [0]
+    snapshots = []
+
+    def get_events():
+        now[0], events = next(frames)
+        return events
+
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: now[0])
+    monkeypatch.setattr(pygame.event, "get", get_events)
+    monkeypatch.setattr(
+        pygame.display, "flip",
+        lambda: snapshots.append(tuple(
+            (ghost.position, ghost.chasing, ghost.patrol_target)
+            for ghost in ghosts
+        )),
+    )
+
+    game.run_game()
+
+    assert snapshots[1] == (
+        ((0, 11), False, (0, 16)),
+        ((0, 14), False, (0, 17)),
+    )
 
 
 def test_ghost_follows_destination_until_chasing_then_resumes_patrol(monkeypatch):
