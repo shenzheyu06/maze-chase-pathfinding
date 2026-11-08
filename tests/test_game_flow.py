@@ -330,3 +330,44 @@ def test_multiple_ghosts_move_on_independent_timers(monkeypatch):
 
     assert positions[:3] == [((0, 5), (0, 7)), ((0, 4), (0, 7)),
                              ((0, 3), (0, 6))]
+
+
+def test_faster_ghost_waits_instead_of_overlapping_ghost_ahead(monkeypatch):
+    monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
+    monkeypatch.setenv("SDL_AUDIODRIVER", "dummy")
+
+    player = Player(0, 0)
+    ghosts = [Ghost(0, 3, move_delay=600), Ghost(0, 4, move_delay=300)]
+    for ghost in ghosts:
+        ghost.last_move_time = 0
+    monkeypatch.setattr(
+        game, "reset_game", lambda: ([list(" .....")], player, ghosts)
+    )
+    frames = iter(
+        [(time, []) for time in (0, 300, 600, 900, 1200)]
+        + [(1250, [pygame.event.Event(pygame.QUIT)])]
+    )
+    now = [0]
+    positions = []
+
+    def get_events():
+        now[0], events = next(frames)
+        return events
+
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: now[0])
+    monkeypatch.setattr(pygame.event, "get", get_events)
+    monkeypatch.setattr(
+        pygame.display, "flip",
+        lambda: positions.append(tuple(ghost.position for ghost in ghosts)),
+    )
+
+    game.run_game()
+
+    assert positions[:5] == [
+        ((0, 3), (0, 4)),
+        ((0, 3), (0, 4)),
+        ((0, 2), (0, 3)),
+        ((0, 2), (0, 3)),
+        ((0, 1), (0, 2)),
+    ]
+    assert all(first != second for first, second in positions)

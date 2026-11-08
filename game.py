@@ -429,6 +429,8 @@ def run_game() -> None:
                     flee_distances = distances_from(maze, player.position)
                     flee_player_position = player.position
             for ghost in ghosts[:]:
+                if ghost not in ghosts:
+                    continue
                 if current_time - ghost.last_move_time < ghost.move_delay:
                     continue
                 if powered:
@@ -440,7 +442,12 @@ def run_game() -> None:
                 else:
                     search = bfs_search if algorithm_name == "BFS" else astar_search
                     movement_path = search(maze, ghost.position, player.position).path
-                ghost.move_along_path(movement_path, current_time)
+                occupied_positions = {
+                    other.position for other in ghosts if other is not ghost
+                }
+                ghost.move_along_path(
+                    movement_path, current_time, occupied_positions
+                )
 
                 if handle_collisions(player, ghosts, powered):
                     lives -= 1

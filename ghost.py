@@ -32,6 +32,7 @@ class Ghost:
         self,
         path: list[tuple[int, int]],
         current_time: int,
+        occupied_positions: set[tuple[int, int]] | None = None,
     ) -> None:
         if (
             current_time - self.last_move_time
@@ -39,7 +40,9 @@ class Ghost:
         ):
             return
 
-        if len(path) > 1:
+        if len(path) > 1 and (
+            occupied_positions is None or path[1] not in occupied_positions
+        ):
             self.previous_position = self.position
             self.row, self.column = path[1]
 
