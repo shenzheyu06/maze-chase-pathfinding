@@ -2,7 +2,7 @@ import pygame
 
 
 TILE_SIZE = 32
-HUD_HEIGHT = 58
+HUD_HEIGHT = 84
 
 WALL_COLOR = (20, 40, 180)
 WALL_OUTLINE_COLOR = (70, 110, 255)
@@ -12,11 +12,12 @@ PELLET_COLOR = (240, 240, 240)
 
 # # = wall
 # . = path with pellet
+# o = power pellet
 # P = player starting position
 # G = ghost starting position
 MAZE_LAYOUT = [
     "#####################",
-    "#G........#.........#",
+    "#Go.......#........o#",
     "#.###.###.#.###.###.#",
     "#.#...............#.#",
     "#.#.###.#####.###.#.#",
@@ -32,7 +33,7 @@ MAZE_LAYOUT = [
     "#.#.###.#####.###.#.#",
     "#.#...............#.#",
     "#.###.###.#.###.###.#",
-    "#.........#.........#",
+    "#o........#........o#",
     "#####################",
 ]
 
@@ -124,10 +125,10 @@ def draw_maze(
                     tile_rect,
                 )
 
-                if tile == ".":
+                if tile in (".", "o"):
                     pygame.draw.circle(
                         screen,
                         PELLET_COLOR,
                         tile_rect.center,
-                        3,
+                        8 if tile == "o" else 3,
                     )

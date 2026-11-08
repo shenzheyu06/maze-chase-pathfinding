@@ -8,6 +8,7 @@ PLAYER_COLOR = (255, 255, 0)
 
 class Player:
     def __init__(self, row: int, column: int) -> None:
+        self.start_position = (row, column)
         self.row = row
         self.column = column
         self.score = 0
@@ -21,7 +22,7 @@ class Player:
         maze: list[list[str]],
         row_change: int,
         column_change: int,
-    ) -> None:
+    ) -> str | None:
         new_row = self.row + row_change
         new_column = self.column + column_change
 
@@ -33,15 +34,24 @@ class Player:
             self.row = new_row
             self.column = new_column
 
-            self.collect_pellet(maze)
+            return self.collect_pellet(maze)
+
+        return None
+
+    def reset_position(self) -> None:
+        self.row, self.column = self.start_position
 
     def collect_pellet(
         self,
         maze: list[list[str]],
-    ) -> None:
-        if maze[self.row][self.column] == ".":
+    ) -> str | None:
+        tile = maze[self.row][self.column]
+        if tile in (".", "o"):
             maze[self.row][self.column] = " "
-            self.score += 10
+            self.score += 50 if tile == "o" else 10
+            return tile
+
+        return None
 
     def draw(
         self,
