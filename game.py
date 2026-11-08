@@ -105,10 +105,11 @@ def draw_hud(
             screen.blit(text, (x, y))
 
 
-def draw_end_screen(
+def draw_status_screen(
     screen: pygame.Surface,
     font: pygame.font.Font,
     message: str,
+    prompt: str,
 ) -> None:
     end_text = font.render(
         message,
@@ -116,8 +117,8 @@ def draw_end_screen(
         GAME_OVER_COLOR,
     )
 
-    restart_text = font.render(
-        "Press R to restart",
+    prompt_text = font.render(
+        prompt,
         True,
         GAME_OVER_COLOR,
     )
@@ -129,7 +130,7 @@ def draw_end_screen(
         )
     )
 
-    restart_rect = restart_text.get_rect(
+    prompt_rect = prompt_text.get_rect(
         center=(
             WINDOW_WIDTH // 2,
             WINDOW_HEIGHT // 2 + 20,
@@ -142,8 +143,8 @@ def draw_end_screen(
     )
 
     screen.blit(
-        restart_text,
-        restart_rect,
+        prompt_text,
+        prompt_rect,
     )
 
 
@@ -208,6 +209,8 @@ def run_game() -> None:
     running = True
     game_over = False
     won = False
+    paused = False
+    pause_started_at = 0
     algorithm_name = "BFS"
     debug_mode = False
     show_exploration = True
@@ -239,6 +242,22 @@ def run_game() -> None:
                     elif event.key == pygame.K_ESCAPE:
                         running = False
 
+                    continue
+
+                if event.key == pygame.K_SPACE:
+                    if paused:
+                        ghost.last_move_time += (
+                            pygame.time.get_ticks() - pause_started_at
+                        )
+                        paused = False
+                    else:
+                        pause_started_at = pygame.time.get_ticks()
+                        paused = True
+                    continue
+
+                if paused:
+                    if event.key == pygame.K_ESCAPE:
+                        running = False
                     continue
 
                 if event.key in (
@@ -301,7 +320,7 @@ def run_game() -> None:
             comparison_positions = positions
         result = comparisons[algorithm_name].result
 
-        if not game_over and not won:
+        if not game_over and not won and not paused:
             current_time = pygame.time.get_ticks()
             previous_ghost_position = ghost.position
 
@@ -353,10 +372,18 @@ def run_game() -> None:
         )
 
         if game_over or won:
-            draw_end_screen(
+            draw_status_screen(
                 screen,
                 end_font,
                 "GAME OVER" if game_over else "YOU WIN!",
+                "Press R to restart",
+            )
+        elif paused:
+            draw_status_screen(
+                screen,
+                end_font,
+                "PAUSED",
+                "Press Space to resume",
             )
 
         pygame.display.flip()
