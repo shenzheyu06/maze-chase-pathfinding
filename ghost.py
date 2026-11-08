@@ -1,11 +1,16 @@
+from random import choice
+
 import pygame
 
 from maze import HUD_HEIGHT, TILE_SIZE
+from pathfinding.flee import distances_from
 
 
 GHOST_COLOR = (255, 50, 50)
 VULNERABLE_COLOR = (60, 100, 255)
 SELECTION_COLOR = (255, 255, 255)
+MIN_PATROL_DISTANCE = 6
+MIN_TARGET_SPACING = 4
 
 
 class Ghost:
@@ -22,6 +27,8 @@ class Ghost:
         self.column = column
         self.move_delay = move_delay
         self.color = color
+        self.chasing = False
+        self.patrol_target: tuple[int, int] | None = None
         self.last_move_time = pygame.time.get_ticks()
 
     @property
@@ -54,7 +61,42 @@ class Ghost:
     def reset_position(self) -> None:
         self.row, self.column = self.start_position
         self.previous_position = None
+        self.chasing = False
+        self.patrol_target = None
         self.reset_move_timer()
+
+    def ensure_patrol_target(
+        self,
+        maze: list[list[str]],
+        unavailable: set[tuple[int, int]],
+        other_targets: list[tuple[int, int]],
+    ) -> None:
+        """Keep a reachable, distinct destination for this patrol."""
+        if self.patrol_target not in (None, self.position) and self.patrol_target not in unavailable:
+            return
+
+        distances = distances_from(maze, self.position)
+        candidates = [
+            tile for tile in distances
+            if tile != self.position
+            and tile not in unavailable
+            and tile not in other_targets
+        ]
+        if not candidates:
+            self.patrol_target = None
+            return
+
+        distant = [tile for tile in candidates if distances[tile] >= MIN_PATROL_DISTANCE]
+        candidates = distant or candidates
+        target_distances = [distances_from(maze, target) for target in other_targets]
+        spaced = [
+            tile for tile in candidates
+            if all(
+                target_map.get(tile, float("inf")) >= MIN_TARGET_SPACING
+                for target_map in target_distances
+            )
+        ]
+        self.patrol_target = choice(spaced or candidates)
 
     def draw(
         self,

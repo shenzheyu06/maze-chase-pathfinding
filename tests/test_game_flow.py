@@ -5,12 +5,12 @@ from ghost import Ghost
 from player import Player
 
 
-def test_default_maze_starts_three_distinct_ghosts():
+def test_default_maze_starts_six_distinct_ghosts():
     maze, player, ghosts = game.reset_game()
 
-    assert len(ghosts) == 3
-    assert len({ghost.position for ghost in ghosts}) == 3
-    assert len({ghost.color for ghost in ghosts}) == 3
+    assert len(ghosts) == 6
+    assert len({ghost.position for ghost in ghosts}) == 6
+    assert len({ghost.color for ghost in ghosts}) == 6
     assert all("G" not in row for row in maze)
     assert player.position not in {ghost.position for ghost in ghosts}
 
@@ -308,6 +308,7 @@ def test_multiple_ghosts_move_on_independent_timers(monkeypatch):
     ghosts = [Ghost(0, 5, move_delay=300), Ghost(0, 7, move_delay=600)]
     for ghost in ghosts:
         ghost.last_move_time = 0
+        ghost.chasing = True
     monkeypatch.setattr(
         game, "reset_game", lambda: ([list(" ........")], player, ghosts)
     )
@@ -371,3 +372,60 @@ def test_faster_ghost_waits_instead_of_overlapping_ghost_ahead(monkeypatch):
         ((0, 1), (0, 2)),
     ]
     assert all(first != second for first, second in positions)
+
+
+def test_ghost_follows_destination_until_chasing_then_resumes_patrol(monkeypatch):
+    monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
+    monkeypatch.setenv("SDL_AUDIODRIVER", "dummy")
+
+    player = Player(0, 0)
+    ghost = Ghost(0, 10)
+    ghost.last_move_time = 0
+    monkeypatch.setattr(
+        game, "reset_game", lambda: ([list(" .................")], player, [ghost])
+    )
+    frames = iter(
+        [(time, []) for time in range(0, 2400, 300)]
+        + [(2400, [pygame.event.Event(pygame.QUIT)])]
+    )
+    now = [0]
+    states = []
+    comparisons = []
+    real_compare_searches = game.compare_searches
+
+    def get_events():
+        now[0], events = next(frames)
+        if now[0] == 2100:
+            player.column = 16
+        return events
+
+    def compare_searches(maze, start, goal):
+        comparisons.append((start, goal))
+        return real_compare_searches(maze, start, goal)
+
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: now[0])
+    monkeypatch.setattr(pygame.event, "get", get_events)
+    monkeypatch.setattr("ghost.choice", lambda options: options[0])
+    monkeypatch.setattr(game, "compare_searches", compare_searches)
+    monkeypatch.setattr(
+        pygame.display, "flip",
+        lambda: states.append((ghost.position, ghost.chasing, ghost.patrol_target)),
+    )
+
+    game.run_game()
+
+    assert [(position, chasing) for position, chasing, _ in states[:8]] == [
+        ((0, 10), False),
+        ((0, 9), False),
+        ((0, 8), False),
+        ((0, 7), False),
+        ((0, 6), True),
+        ((0, 5), True),
+        ((0, 4), True),
+        ((0, 5), False),
+    ]
+    assert len({target for _, _, target in states[:4]}) == 1
+    assert states[7][2] != states[6][2]
+    assert ((0, 9), states[1][2]) in comparisons
+    assert ((0, 6), (0, 0)) in comparisons
+    assert ((0, 5), states[7][2]) in comparisons
