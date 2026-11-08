@@ -5,6 +5,16 @@ from ghost import Ghost
 from player import Player
 
 
+def test_default_maze_starts_three_distinct_ghosts():
+    maze, player, ghosts = game.reset_game()
+
+    assert len(ghosts) == 3
+    assert len({ghost.position for ghost in ghosts}) == 3
+    assert len({ghost.color for ghost in ghosts}) == 3
+    assert all("G" not in row for row in maze)
+    assert player.position not in {ghost.position for ghost in ghosts}
+
+
 def test_last_pellet_wins_and_restart_resets_game(monkeypatch):
     monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
     monkeypatch.setenv("SDL_AUDIODRIVER", "dummy")
@@ -14,7 +24,7 @@ def test_last_pellet_wins_and_restart_resets_game(monkeypatch):
     def reset_game():
         player = Player(0, 0)
         players.append(player)
-        return [list(" .# ")], player, Ghost(0, 3)
+        return [list(" .# ")], player, [Ghost(0, 3)]
 
     event_batches = iter(
         [
@@ -59,7 +69,7 @@ def test_pause_freezes_movement_and_preserves_ghost_delay(monkeypatch):
     player = Player(0, 0)
     ghost = Ghost(0, 3)
     ghost.last_move_time = 0
-    monkeypatch.setattr(game, "reset_game", lambda: ([list(" ...")], player, ghost))
+    monkeypatch.setattr(game, "reset_game", lambda: ([list(" ...")], player, [ghost]))
 
     frames = iter(
         [
@@ -84,10 +94,10 @@ def test_pause_freezes_movement_and_preserves_ghost_delay(monkeypatch):
         return events
 
     def draw_hud(screen, font, score, lives, power_remaining_ms,
-                 comparisons, algorithm_name, debug_mode, fleeing):
+                 comparisons, algorithm_name, debug_mode, fleeing, ghost_label):
         debug_flags.append(debug_mode)
         real_draw_hud(screen, font, score, lives, power_remaining_ms,
-                      comparisons, algorithm_name, debug_mode, fleeing)
+                      comparisons, algorithm_name, debug_mode, fleeing, ghost_label)
 
     monkeypatch.setattr(pygame.time, "get_ticks", lambda: now[0])
     monkeypatch.setattr(pygame.event, "get", get_events)
@@ -120,7 +130,7 @@ def test_power_pellet_removes_eaten_ghost(monkeypatch):
     player = Player(0, 0)
     ghost = Ghost(0, 2)
     ghost.last_move_time = 0
-    monkeypatch.setattr(game, "reset_game", lambda: (maze, player, ghost))
+    monkeypatch.setattr(game, "reset_game", lambda: (maze, player, [ghost]))
 
     frames = iter(
         [
@@ -145,7 +155,7 @@ def test_power_pellet_removes_eaten_ghost(monkeypatch):
         game,
         "draw_hud",
         lambda screen, font, score, lives, power_remaining_ms,
-               comparisons, algorithm_name, debug_mode, fleeing: hud.append(
+               comparisons, algorithm_name, debug_mode, fleeing, ghost_label: hud.append(
                    (score, lives, power_remaining_ms, comparisons)
                ),
     )
@@ -169,7 +179,7 @@ def test_lost_lives_keep_pellets_and_score_until_game_over(monkeypatch):
     player = Player(0, 0)
     ghost = Ghost(0, 3)
     ghost.last_move_time = 0
-    monkeypatch.setattr(game, "reset_game", lambda: (maze, player, ghost))
+    monkeypatch.setattr(game, "reset_game", lambda: (maze, player, [ghost]))
 
     frames = iter(
         [
@@ -192,7 +202,7 @@ def test_lost_lives_keep_pellets_and_score_until_game_over(monkeypatch):
         game,
         "draw_hud",
         lambda screen, font, score, lives, power_remaining_ms,
-               comparisons, algorithm_name, debug_mode, fleeing: hud.append(
+               comparisons, algorithm_name, debug_mode, fleeing, ghost_label: hud.append(
                    (score, lives, player.position)
                ),
     )
@@ -221,7 +231,7 @@ def test_powered_ghost_moves_away_from_player(monkeypatch):
     ghost = Ghost(0, 3)
     ghost.last_move_time = 0
     monkeypatch.setattr(
-        game, "reset_game", lambda: ([list(" o...")], player, ghost)
+        game, "reset_game", lambda: ([list(" o...")], player, [ghost])
     )
 
     frames = iter(
@@ -248,3 +258,75 @@ def test_powered_ghost_moves_away_from_player(monkeypatch):
 
     assert player.position == (0, 1)
     assert positions == [(0, 3), (0, 4), (0, 4)]
+
+
+def test_debug_selection_cycles_while_paused_and_resets_when_reopened(monkeypatch):
+    monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
+    monkeypatch.setenv("SDL_AUDIODRIVER", "dummy")
+
+    player = Player(0, 0)
+    ghosts = [Ghost(0, 3), Ghost(0, 5), Ghost(0, 7)]
+    maze = [list(" ........")]
+    monkeypatch.setattr(game, "reset_game", lambda: (maze, player, ghosts))
+    keys = [pygame.K_o, pygame.K_SPACE, pygame.K_RIGHTBRACKET,
+            pygame.K_RIGHTBRACKET, pygame.K_LEFTBRACKET, pygame.K_o,
+            pygame.K_o]
+    event_batches = iter(
+        [[pygame.event.Event(pygame.KEYDOWN, key=key)] for key in keys]
+        + [[pygame.event.Event(pygame.QUIT)]]
+    )
+    labels = []
+    starts = []
+    real_compare_searches = game.compare_searches
+
+    def compare_searches(maze, start, goal):
+        starts.append(start)
+        return real_compare_searches(maze, start, goal)
+
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: 0)
+    monkeypatch.setattr(pygame.event, "get", lambda: next(event_batches))
+    monkeypatch.setattr(game, "compare_searches", compare_searches)
+    monkeypatch.setattr(
+        game, "draw_hud",
+        lambda screen, font, score, lives, power_remaining_ms,
+               comparisons, algorithm_name, debug_mode, fleeing, ghost_label:
+               labels.append(ghost_label),
+    )
+
+    game.run_game()
+
+    assert labels == ["Ghost 1/3", "Ghost 1/3", "Ghost 2/3", "Ghost 3/3",
+                      "Ghost 2/3", "Ghost 2/3", "Ghost 1/3", "Ghost 1/3"]
+    assert starts == [(0, 3), (0, 5), (0, 7), (0, 5), (0, 3)]
+
+
+def test_multiple_ghosts_move_on_independent_timers(monkeypatch):
+    monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
+    monkeypatch.setenv("SDL_AUDIODRIVER", "dummy")
+
+    player = Player(0, 0)
+    ghosts = [Ghost(0, 5, move_delay=300), Ghost(0, 7, move_delay=600)]
+    for ghost in ghosts:
+        ghost.last_move_time = 0
+    monkeypatch.setattr(
+        game, "reset_game", lambda: ([list(" ........")], player, ghosts)
+    )
+    frames = iter([(0, []), (300, []), (600, []), (650, [pygame.event.Event(pygame.QUIT)])])
+    now = [0]
+    positions = []
+
+    def get_events():
+        now[0], events = next(frames)
+        return events
+
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: now[0])
+    monkeypatch.setattr(pygame.event, "get", get_events)
+    monkeypatch.setattr(
+        pygame.display, "flip",
+        lambda: positions.append(tuple(ghost.position for ghost in ghosts)),
+    )
+
+    game.run_game()
+
+    assert positions[:3] == [((0, 5), (0, 7)), ((0, 4), (0, 7)),
+                             ((0, 3), (0, 6))]

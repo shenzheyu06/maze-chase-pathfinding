@@ -10,8 +10,11 @@ from maze import (
     create_maze,
     draw_maze,
     find_start,
+    find_starts,
     validate_maze,
 )
+from pathfinding.astar import astar_search
+from pathfinding.bfs import bfs_search
 from pathfinding.comparison import SearchComparison, compare_searches
 from pathfinding.flee import distances_from, flee_path
 from player import Player
@@ -21,6 +24,7 @@ FPS = 60
 STARTING_LIVES = 3
 POWER_DURATION_MS = 6000
 GHOST_BONUS = 200
+GHOST_COLORS = ((255, 50, 50), (255, 130, 190), (255, 165, 50))
 
 ROUTE_COLOR = (50, 200, 100)
 EXPLORED_COLOR = (150, 90, 230, 70)
@@ -88,6 +92,7 @@ def draw_hud(
     algorithm_name: str,
     debug_mode: bool,
     fleeing: bool = False,
+    ghost_label: str | None = None,
 ) -> None:
     summary = f"Score: {score}    Lives: {lives}"
     if power_remaining_ms:
@@ -109,9 +114,13 @@ def draw_hud(
         screen.blit(no_ghosts, (160, 31))
         return
 
+    if ghost_label:
+        label = font.render(ghost_label, True, TEXT_COLOR)
+        screen.blit(label, (10, 31))
+
     if fleeing:
         chase_text = font.render("Chase stats", True, TEXT_COLOR)
-        screen.blit(chase_text, (10, 31))
+        screen.blit(chase_text, (10, 58 if ghost_label else 31))
 
     for row, name in enumerate(("BFS", "A*")):
         comparison = comparisons[name]
@@ -205,7 +214,7 @@ def reset_positions(player: Player, ghosts: list[Ghost]) -> None:
 def reset_game() -> tuple[
     list[list[str]],
     Player,
-    Ghost,
+    list[Ghost],
 ]:
     maze = create_maze()
 
@@ -214,22 +223,19 @@ def reset_game() -> tuple[
         "P",
     )
 
-    ghost_row, ghost_column = find_start(
-        maze,
-        "G",
-    )
+    ghost_starts = find_starts(maze, "G")
 
     player = Player(
         player_row,
         player_column,
     )
 
-    ghost = Ghost(
-        ghost_row,
-        ghost_column,
-    )
+    ghosts = [
+        Ghost(row, column, color=GHOST_COLORS[index % len(GHOST_COLORS)])
+        for index, (row, column) in enumerate(ghost_starts)
+    ]
 
-    return maze, player, ghost
+    return maze, player, ghosts
 
 
 def run_game() -> None:
@@ -251,8 +257,8 @@ def run_game() -> None:
     font = pygame.font.Font(None, 24)
     end_font = pygame.font.Font(None, 28)
 
-    maze, player, ghost = reset_game()
-    ghosts = [ghost]
+    maze, player, ghosts = reset_game()
+    selected_ghost = ghosts[0] if ghosts else None
 
     running = True
     game_over = False
@@ -279,6 +285,18 @@ def run_game() -> None:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_o:
                     debug_mode = not debug_mode
+                    if debug_mode:
+                        selected_ghost = ghosts[0] if ghosts else None
+                        comparison_positions = None
+                elif (
+                    debug_mode
+                    and event.key in (pygame.K_LEFTBRACKET, pygame.K_RIGHTBRACKET)
+                    and ghosts
+                ):
+                    direction = -1 if event.key == pygame.K_LEFTBRACKET else 1
+                    selected_index = (ghosts.index(selected_ghost) + direction) % len(ghosts)
+                    selected_ghost = ghosts[selected_index]
+                    comparison_positions = None
                 elif debug_mode and event.key == pygame.K_v:
                     show_exploration = not show_exploration
                 elif debug_mode and event.key == pygame.K_p:
@@ -286,13 +304,14 @@ def run_game() -> None:
 
                 if game_over or won:
                     if event.key == pygame.K_r:
-                        maze, player, ghost = reset_game()
-                        ghosts = [ghost]
+                        maze, player, ghosts = reset_game()
+                        selected_ghost = ghosts[0] if ghosts else None
                         game_over = False
                         won = False
                         lives = STARTING_LIVES
                         powered_until = 0
-                        ghost.reset_move_timer()
+                        for ghost in ghosts:
+                            ghost.reset_move_timer()
                         comparison_positions = None
                         flee_player_position = None
 
@@ -388,11 +407,13 @@ def run_game() -> None:
                 elif not any(tile in (".", "o") for row in maze for tile in row):
                     won = True
 
-        if ghosts:
-            ghost = ghosts[0]
-            positions = (ghost.position, player.position)
+                if selected_ghost not in ghosts:
+                    selected_ghost = ghosts[0] if ghosts else None
+
+        if selected_ghost is not None:
+            positions = (selected_ghost, selected_ghost.position, player.position)
             if positions != comparison_positions:
-                comparisons = compare_searches(maze, *positions)
+                comparisons = compare_searches(maze, selected_ghost.position, player.position)
                 comparison_positions = positions
             result = comparisons[algorithm_name].result
         else:
@@ -402,31 +423,41 @@ def run_game() -> None:
 
         if ghosts and not game_over and not won and not paused and not life_lost_this_frame:
             current_time = pygame.time.get_ticks()
-            movement_path = result.path
-            if current_time < powered_until:
+            powered = current_time < powered_until
+            if powered:
                 if flee_player_position != player.position:
                     flee_distances = distances_from(maze, player.position)
                     flee_player_position = player.position
-                movement_path = flee_path(
-                    maze, ghost.position, ghost.previous_position, flee_distances
-                )
-            ghost.move_along_path(
-                movement_path,
-                current_time,
-            )
-
-            if handle_collisions(player, ghosts, current_time < powered_until):
-                lives -= 1
-                powered_until = 0
-                if lives == 0:
-                    game_over = True
+            for ghost in ghosts[:]:
+                if current_time - ghost.last_move_time < ghost.move_delay:
+                    continue
+                if powered:
+                    movement_path = flee_path(
+                        maze, ghost.position, ghost.previous_position, flee_distances
+                    )
+                elif ghost is selected_ghost:
+                    movement_path = result.path
                 else:
-                    reset_positions(player, ghosts)
+                    search = bfs_search if algorithm_name == "BFS" else astar_search
+                    movement_path = search(maze, ghost.position, player.position).path
+                ghost.move_along_path(movement_path, current_time)
 
-        if ghosts:
-            positions = (ghosts[0].position, player.position)
+                if handle_collisions(player, ghosts, powered):
+                    lives -= 1
+                    powered_until = 0
+                    if lives == 0:
+                        game_over = True
+                    else:
+                        reset_positions(player, ghosts)
+                    break
+
+                if selected_ghost not in ghosts:
+                    selected_ghost = ghosts[0] if ghosts else None
+
+        if selected_ghost is not None:
+            positions = (selected_ghost, selected_ghost.position, player.position)
             if positions != comparison_positions:
-                comparisons = compare_searches(maze, *positions)
+                comparisons = compare_searches(maze, selected_ghost.position, player.position)
                 comparison_positions = positions
             result = comparisons[algorithm_name].result
         else:
@@ -441,7 +472,7 @@ def run_game() -> None:
                 flee_distances = distances_from(maze, player.position)
                 flee_player_position = player.position
             display_path = flee_path(
-                maze, ghosts[0].position, ghosts[0].previous_position,
+                maze, selected_ghost.position, selected_ghost.previous_position,
                 flee_distances,
             )
             explored = list(flee_distances)
@@ -471,7 +502,16 @@ def run_game() -> None:
 
         player.draw(screen)
         for ghost in ghosts:
-            ghost.draw(screen, display_time < powered_until)
+            ghost.draw(
+                screen,
+                display_time < powered_until,
+                debug_mode and ghost is selected_ghost,
+            )
+
+        ghost_label = (
+            f"Ghost {ghosts.index(selected_ghost) + 1}/{len(ghosts)}"
+            if selected_ghost is not None else None
+        )
 
         draw_hud(
             screen,
@@ -483,6 +523,7 @@ def run_game() -> None:
             algorithm_name,
             debug_mode,
             fleeing,
+            ghost_label,
         )
 
         if game_over or won:

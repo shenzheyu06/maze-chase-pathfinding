@@ -17,7 +17,7 @@ PELLET_COLOR = (240, 240, 240)
 # G = ghost starting position
 MAZE_LAYOUT = [
     "#####################",
-    "#Go.......#........o#",
+    "#Go.......#.......oG#",
     "#.###.###.#.###.###.#",
     "#.#...............#.#",
     "#.#.###.#####.###.#.#",
@@ -33,7 +33,7 @@ MAZE_LAYOUT = [
     "#.#.###.#####.###.#.#",
     "#.#...............#.#",
     "#.###.###.#.###.###.#",
-    "#o........#........o#",
+    "#o........#.......oG#",
     "#####################",
 ]
 
@@ -70,6 +70,24 @@ def find_start(
     raise ValueError(
         f"The maze does not contain '{symbol}'."
     )
+
+
+def find_starts(
+    maze: list[list[str]],
+    symbol: str,
+) -> list[tuple[int, int]]:
+    """Find and clear every starting tile with the given symbol."""
+    positions = []
+    for row_index, row in enumerate(maze):
+        for column_index, tile in enumerate(row):
+            if tile == symbol:
+                maze[row_index][column_index] = " "
+                positions.append((row_index, column_index))
+
+    if not positions:
+        raise ValueError(f"The maze does not contain '{symbol}'.")
+
+    return positions
 
 
 def is_walkable(

@@ -5,6 +5,7 @@ from maze import HUD_HEIGHT, TILE_SIZE
 
 GHOST_COLOR = (255, 50, 50)
 VULNERABLE_COLOR = (60, 100, 255)
+SELECTION_COLOR = (255, 255, 255)
 
 
 class Ghost:
@@ -13,12 +14,14 @@ class Ghost:
         row: int,
         column: int,
         move_delay: int = 300,
+        color: tuple[int, int, int] = GHOST_COLOR,
     ) -> None:
         self.start_position = (row, column)
         self.previous_position: tuple[int, int] | None = None
         self.row = row
         self.column = column
         self.move_delay = move_delay
+        self.color = color
         self.last_move_time = pygame.time.get_ticks()
 
     @property
@@ -54,6 +57,7 @@ class Ghost:
         self,
         screen: pygame.Surface,
         vulnerable: bool = False,
+        selected: bool = False,
     ) -> None:
         center_x = (
             self.column * TILE_SIZE
@@ -68,7 +72,16 @@ class Ghost:
 
         pygame.draw.circle(
             screen,
-            VULNERABLE_COLOR if vulnerable else GHOST_COLOR,
+            VULNERABLE_COLOR if vulnerable else self.color,
             (center_x, center_y),
             TILE_SIZE // 3,
         )
+
+        if selected:
+            pygame.draw.circle(
+                screen,
+                SELECTION_COLOR,
+                (center_x, center_y),
+                TILE_SIZE // 3 + 4,
+                width=2,
+            )

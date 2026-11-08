@@ -8,7 +8,7 @@ A tile-based maze chase game built with Python and Pygame Community Edition to p
 - Pellet collection and scoring
 - Power pellets make ghosts vulnerable for six seconds; eaten ghosts stay gone until a new game
 - Three lives; losing a life resets positions while keeping score and collected pellets
-- A ghost that follows a shortest route using BFS or A*, switchable during play
+- Three ghosts that independently follow shortest routes using BFS or A*, switchable during play
 - Live route and explored-tile visualization
 - Debug-mode BFS and A* comparison of path length, visited tiles, and average search time
 - Pause and inspect the game without losing the current debug view
@@ -21,13 +21,14 @@ A tile-based maze chase game built with Python and Pygame Community Edition to p
 - O: toggle debug mode and its visual overlays
 - V: toggle explored tiles while debug mode is on
 - P: toggle the projected ghost path while debug mode is on
+- [ and ]: select the previous or next ghost while debug mode is on
 - Space: pause or resume the game
 - R: restart after winning or game over
 - Esc: quit
 
 The explored-tile and path settings are restored when debug mode is turned back on.
-In debug mode, a "DEBUG MODE" label appears beside aligned HUD columns comparing BFS and A* for the current ghost and player tiles. Search times average 20 runs and update when either moves. The `>` marker shows the selected chase algorithm. The score remains visible when debug mode is off.
-Large pellets activate the power effect. The HUD shows its remaining time, and a vulnerable ghost turns blue and flees toward neighboring tiles farther from the player by maze distance. It avoids immediately retracing its last step when another route is available. The effect ends if the player loses a life. While fleeing, the debug overlay shows the next escape step and the BFS distance search; the comparison numbers remain labeled as chase stats.
+In debug mode, the first ghost is selected when debug mode opens. The selected ghost has a white outline and its number appears in the HUD. The route, explored tiles, and aligned BFS/A* comparisons refer to that ghost. Search times average 20 runs and update when the selected ghost or player moves. The `>` marker shows the selected chase algorithm. The score remains visible when debug mode is off.
+Large pellets activate the power effect. The HUD shows its remaining time, and vulnerable ghosts turn blue and flee toward neighboring tiles farther from the player by maze distance. They avoid immediately retracing their last step when another route is available. The effect ends if the player loses a life. While fleeing, the debug overlay shows the selected ghost's next escape step and the BFS distance search; the comparison numbers remain labeled as chase stats.
 
 ## Planned Features
 
