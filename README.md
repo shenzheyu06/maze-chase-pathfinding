@@ -2,6 +2,16 @@
 
 A tile-based maze chase game built with Python and Pygame Community Edition to practise and compare pathfinding algorithms against a moving player.
 
+## Run the Game
+
+From the project directory in PowerShell, create a virtual environment, install the dependency, and start the game:
+
+```powershell
+python -m venv .venv
+.venv\Scripts\pip install -r requirements.txt
+.venv\Scripts\python main.py
+```
+
 ## Current Features
 
 - Grid-based maze rendering, player movement, and wall collision
